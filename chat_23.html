@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Chat</title>
+		<style>
+		body,
+textarea,
+input {
+	font: 13px "Trebuchet MS", sans-serif;
+}
+
+.chat {
+	max-width: 300px;
+}
+
+.chat-div-chart{
+	width:50%;
+	height:70px;
+	background-color: #BBB;
+}
+.chat-messages,
+.chat textarea,
+.chat-name {
+	border: 1px solid #bbb;
+}
+
+.chat-message {
+	margin-bottom: 10px;
+}
+
+.chat-messages {
+	width: 100%;
+	height: 300px;
+	overflow-y: scroll;
+	padding: 10px;
+}
+
+.chat-name {
+	width: 100%;
+	padding: 10px;
+	border-bottom: 0;
+	margin: 0;
+}
+
+.chat textarea {
+	width: 100%;
+	padding: 10px;
+	border-top: 0;
+	margin: 0;
+	max-width: 100%;
+}
+
+.chat-status {
+	color: #bbb;
+}
+
+.chat textarea,
+.chat-name {
+	outline: none;
+}
+#mydiv{
+    width:700px;
+    height:500px;
+    background-color:#BBB;
+ }
+</style>
+	</head>
+	<body>
+	
+
+		<div class="chat">
+			<input type="text" class="chat-name" placeholder="Enter receiver's email id">
+			<div class="chat-messages">
+			</div>
+			<textarea placeholder="Enter message"></textarea>
+			<div class="chat-status">Status: <span>Idle</span></div>
+		</div>
+
+		<form name="loginForm">
+  			email:<br>
+  			<input type="email" name="username"><br>
+  			Password:<br>
+  			<input type="password" name="password"><br><br>
+		</form>
+		<button type="button" onclick="connectToSocket()"></button><br><br>
+		<div id="mydiv"></div>
+		<script src="http://192.169.2.11:3030/socket.io/socket.io.js"></script>
+	<!-- <script type = "text/javascript" src="/node_modules/d3/d3.min.js"></script> -->
+	<script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+	<script>
+		try {
+				var socket = io.connect('http://192.169.2.11:3030');
+				// var delivery = new Delivery(socket);
+			} catch(e) {
+					// set status to warn user
+				}
+
+			(function() {
+				var getNode = function(s) {
+					return document.querySelector(s);
+				};
+				
+				var status = getNode('.chat-status span');
+				var textarea = getNode('.chat textarea');
+				var chatName = getNode('.chat-name');
+				var messages = getNode('.chat-messages');
+
+				var statusDefault = status.textConent;
+
+				var setStatus = function(s) {
+					status.textContent = s;
+				};
+
+				if(socket != undefined) 
+				{
+					socket.on('output', function(data,val) 
+					{
+						if(val===0)
+						{
+							if(data.length) 
+							{	
+								for(var x = 0; x < data.length; x++) 
+								{
+									var message = document.createElement('div');
+									message.setAttribute('class', 'chat-message');
+									message.textContent = data[x].sname + ':' + data[x].message;
+									messages.appendChild(message);
+									messages.insertBefore(message, messages.firstChild);
+								}
+							}
+						}
+						else
+						{
+							var mydiv =document.createElement('div');
+							mydiv.setAttribute('class','chat-div-chart');
+						}
+					});
+
+					socket.on('new_output',function(data,data2)
+					{
+						if(data.length){
+							for(var x=0;x<data.length;x++){
+								console.log(data[x].dname,data2[x]);
+							}
+						}
+					});
+
+					socket.on('new_output2',function(data,data2)
+					{
+						console.log(data[0].dname,1);
+					});
+
+					socket.on('new_output1',function(data,data2)
+					{
+						console.log(data[0].dname,0);	
+					});
+
+					socket.on('output4',function(arr)
+					{
+						d3.select("svg").remove();
+						var temp_values=[];
+						for(var i=1;i<arr[0].length;i++)
+						{
+							var t1=[];
+							var t2=arr[0][i].split(",");
+							t1.push(t2);
+							temp_values.push({"label":t1[0][0] , "count":t1[0][1]});
+						}
+						var color =d3.scale.category20c();
+						d3.select("#mydiv").append("svg").attr("width",500).attr("height",400);
+						var width=500,height=300,arc;
+						var cushion=20,radius;
+					    
+					    if(width>height)
+					    radius=height/2;
+					    else
+					    radius =(width)/2;
+					    
+					    radius = radius - radius * cushion /100;
+
+					    arc = d3.svg.arc()
+					      	.outerRadius(radius);
+
+					    var svg=d3.select("#mydiv")
+					              .select('svg')
+					              .append('g')
+					              .attr('transform', 'translate(' + (0+(width / 2)) + ',' + (0+(height / 2)) + ')');
+		    			console.log("chart banaao :P");
+						var pie = d3.layout.pie()
+			                .value(function(d) {return d.count; })
+			                .sort(null);
+		    
+						var path =svg.selectAll('.arc')
+		                	.data(pie(temp_values))  
+			                .enter()
+			                .append('g')
+			                .attr("class","arc")
+			                .attr("id",function(d,i){return "chartPie_id_arc"+i;});
+					    path.append('path')
+					        .attr('fill', function(d, i){return color(d.data.label); })
+					        .attr('d',arc)
+					        .each(function(d) { this._current = d; });
+							
+					});
+
+					socket.on('status', function(data) {
+						setStatus((typeof data === 'object') ? data.message : data);
+						if(data.clear === true) {
+							textarea.value = '';
+						}
+					});
+
+					textarea.addEventListener('keydown', function(event) {
+						var self = this;
+						var name = chatName.value;
+
+						if(event.which === 13 && event.shiftKey === false) {
+							if(textarea.value[0]==='C' && textarea.value[1]==='h' && textarea.value[2]==='a' && textarea.value[3]==='r'  && textarea.value[4]==='t')
+							{
+								socket.emit('chart',{
+									name : name,
+									message: self.value,
+								});
+							}
+							else
+							{
+								socket.emit('input', {
+									name : name,
+									message : self.value,
+									
+								});
+							}
+							event.preventDefault();
+						}
+					});
+				}
+			})();
+
+			connectToSocket = function(){
+				var x =document.forms["loginForm"]["username"].value;
+				var y =document.forms["loginForm"]["password"].value;
+				console.log(x,y);
+				socket.emit('join', {
+								'username' : x,
+								'password' : y
+							});
+				return false;
+			}
+	</script>
+	</body>
+</html>

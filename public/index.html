@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Chat</title>
+	</head>
+	
+	<body>
+		<link href="/css/index.css" rel="stylesheet">
+
+		<!-- making a class in which we built different div for the  purpose -->
+		<div class="chat">
+			<!-- top most div for entering the receiver mail id or username -->
+			<!-- next div for chat messaging which also has drop event in it -->
+			<!-- next div is textarea in which sender will type the message -->
+			<!-- next is for login ..entring the username -->
+			<!-- next is for password  -->
+			<!-- and other two div from which chart will have to be copied in the 2nd div -->
+
+			<input type="text" class="chat-name" placeholder="Enter receiver's email id">
+			<div class="chat-messages" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+			<textarea placeholder="Enter message"></textarea>
+			<div class="chat-status">Status: <span>Idle</span></div>
+			<form name="loginForm">
+	  			email:<br>
+	  			<input type="email" name="username"><br>
+	  			Password:<br>
+	  			<input type="password" name="password"><br><br>
+			</form>
+			<button type="button" onclick="connectToSocket()"></button><br><br>
+		</div>
+		<div id="mydiv2" draggable="true" ondragstart="drag(event)"></div>
+		<div id="mydiv3" draggable="true" ondragstart="drag(event)"></div>
+		<!-- all div created and do work accordingly -->
+
+		
+		<!-- script file containing all the functionality and required the javascript file -->
+		<script src="http://192.169.7.56:3030/socket.io/socket.io.js"></script>
+		<script src="/js/d3.min.js"></script>
+		<script src="/js/chartPie_v0i.js"></script>
+		<script src="/js/functionPie.js"></script>
+		<!-- basic files included upto here and now implementing the functionalities -->
+
+
+		<script>
+
+			// first check for the connection of socket at the port
+			//if done then assign a variable else throw err
+			try 
+			{
+				var socket = io.connect('http://192.169.7.56:3030');
+			} 
+			catch(e) 
+			{
+				console.log("scoket didn't connect");	// set status to warn user
+			}	
+
+
+			// default functionalities 
+			(function() 
+			{
+					
+				//function for extracting the node using the div class name
+				var getNode = function(s) {return document.querySelector(s);};
+				
+				var status = getNode('.chat-status span');
+				var textarea = getNode('.chat textarea');
+				var chatName = getNode('.chat-name');
+				var messages = getNode('.chat-messages');
+				var statusDefault = status.textConent;
+
+
+
+
+				// function for updating the status
+				var setStatus = function(s) {status.textContent = s;};
+
+
+				// if the socket is defined we have to do some task
+				// checking for the functionalities on different rendering values
+				if(socket != undefined) 
+				{
+
+					// if renders to .OUPTUT we have to check tasks like
+					//first dividing the output on the basis of values 
+					// if val===0 we have to show previous messages from other users 
+							// if ischart===0 || undefined ...message has to be appended
+							//else we have to construct the chart from the retrieved data
+					socket.on('output', function(data,val) 
+					{
+						
+						//if val==0 ..and there is something in the data...then do the operation
+						if(val===0)
+						{
+							console.log("message from database",data.length);
+							if(data.length) 
+							{	
+								for(var x = 0; x < data.length; x++) 
+								{
+									if(data[x].isChart===0 || data[x].isChart===undefined)
+									{
+										var message = document.createElement('div');
+										message.setAttribute('class', 'chat-message');
+										message.textContent = data[x].sname + ':' + data[x].message;
+										messages.appendChild(message);
+										messages.insertBefore(message, messages.firstChild);
+									}
+									else if(data[x].isChart === 1)
+									{
+										console.log(x);
+										var message = document.createElement('div');
+										message.setAttribute('class', 'chat-div-chart');
+										messages.appendChild(message);
+										messages.insertBefore(message, messages.firstChild);
+									//	console.log("Chart data from database");
+										var temp_arr=[];
+										//console.log(data[x].message);
+										var temp =data[x].message.split("\n");
+										temp_arr.push(temp);
+									//	console.log(temp,temp_arr.length,temp_arr);
+										var temp_values=[];
+										for(var i=1;i<temp_arr[0].length;i++)
+										{
+											var t2=(temp_arr[0][i].split(","));
+											temp_values.push({'label': t2[0] ,'count':t2[1]});
+											//console.log(t1);
+										}
+										var color =d3.scale.category20c();
+										d3.select(".chat-div-chart").append("svg").attr("width",150).attr("height",100);
+										addPieChart(0,0,100,100,"chat-div-chart",color,0,0,0,0,0,temp_values,1);
+									}
+									else 
+									{
+										var message = document.createElement('div');
+										message.setAttribute('class', 'chat-div-chart');
+										messages.appendChild(message);
+										messages.insertBefore(message, messages.firstChild);
+									//	console.log("Chart data from database");
+										var color =d3.scale.category20c();
+										d3.select(".chat-div-chart").append("svg").attr("width",150).attr("height",100);
+										addPieChart(0,0,100,100,"chat-div-chart",color,0,0,0,0,0,data[x].message,1);
+									}
+								}
+							}
+						}
+						/// functionality completed on val===0
+
+
+
+
+
+						//functionality on val===1
+						else if(val===1)
+						{
+
+							var mydiv =document.createElement('div');
+							mydiv.setAttribute('class','chat-div-chart');
+							messages.appendChild(mydiv);
+							messages.insertBefore(mydiv,messages.firstChild);
+							console.log("user ask to make chart for given dataset");
+	
+							//splitting the string on "\n"
+							var temp_arr=[];
+							var temp =data.split("\n");
+							temp_arr.push(temp);
+							console.log(temp,temp_arr.length,temp_arr);
+
+							//temp_arr[0]..contains data and to acces we could use temp_Arr[0][0];
+
+							var temp_values=[];
+							for(var i=1;i<temp_arr[0].length;i++)
+							{
+								var t2=(temp_arr[0][i].split(","));
+								temp_values.push({'label': t2[0] ,'count':t2[1]});
+								//console.log(t1);
+							}
+
+							//temp_values is an arrray containg object having label	and count
+
+							console.log(temp_values,temp_values.length);
+							var color =d3.scale.category20c();
+							d3.select(".chat-div-chart").append("svg").attr("width",150).attr("height",100);
+							addPieChart(0,0,100,100,"chat-div-chart",color,0,0,0,0,0,temp_values,1);
+						}
+						else
+						{
+							console.log(data,"chart using drag and drop");
+							var mydiv =document.createElement('div');
+							mydiv.setAttribute('id','mydiv');
+							messages.appendChild(mydiv);
+							messages.insertBefore(mydiv,messages.firstChild);
+						//	console.log(data[0].data[0],data[0].data[1]);
+							var temp_arr=[];
+							for(var i=0;i<data[0].data.length;i++)
+							temp_arr.push({"label": data[0].data[i]['label'] ,"count" :data[0].data[i]['count']});
+							console.log(temp_arr);
+							d3.select("#mydiv").append("svg").attr("width",150).attr("height",100);
+							var color =d3.scale.category20c();
+							addPieChart(0,0,100,100,"mydiv",color,0,0,0,0,0,temp_arr,3);
+						}
+					});
+					//functionality completed when rendered to .OUTPUT
+
+
+
+
+					//functionality on when rendered to new_output 
+					// it is begin rendered when a new join is made
+					//in this we are only making user know about the current new status of their friends
+					socket.on('new_output',function(data,data2)
+					{
+						if(data.length)
+						{
+							for(var x=0;x<data.length;x++)
+							console.log(data[x].dname,data2[x]);
+						}
+					});
+
+
+
+
+
+					// this is basically notifying the friends of a particular user that he is
+					// now online and available for chat purposes.
+					socket.on('new_output2',function(data,data2)
+					{
+						console.log(data[0].dname,1);
+					});
+
+
+
+
+
+					// this is basically notifying the friends of a particular user that he is
+					// now offline and messages sent to him will be saved in database.
+					socket.on('new_output1',function(data,data2)
+					{
+						console.log(data[0].dname,0);	
+					});
+
+
+
+
+					//when rendered to .STATUS set the status of message
+					// not implemented correctly ...incomplete
+					socket.on('status', function(data) {
+						setStatus((typeof data === 'object') ? data.message : data);
+						if(data.clear === true) {
+							textarea.value = '';
+						}
+					});
+
+
+
+
+
+
+
+
+					//adding event to the textArea when the enter key is pressed 
+					//first check of the key down is pressed shift key was enabled or not
+					// if enabled .... do nothing 
+					//else send to 
+					// then checking the value of message ..if first five letter will be Chart then redirect it to .CHART 
+					// else redirect it to the  .INPUT
+					textarea.addEventListener('keydown', function(event) 
+					{
+						var self = this;
+						var name = chatName.value;
+
+						//checking the shift key condition and then checking first five letter is Chart ot not
+						if(event.which === 13 && event.shiftKey === false) 
+						{
+							//if Chart in first five letter do redirect to .CHart else to .INPUT
+							if(textarea.value[0]==='C' && textarea.value[1]==='h' && textarea.value[2]==='a' && textarea.value[3]==='r'  && textarea.value[4]==='t')
+							{
+								socket.emit('chart',{
+									name : name,
+									message: self.value,
+								});
+							}
+							else
+							{
+								socket.emit('input', {
+									name : name,
+									message : self.value,
+									
+								});
+							}
+							event.preventDefault();
+						}
+					});
+				}
+			})();
+
+
+
+
+
+			//works as a login button by which socket is activated
+			connectToSocket = function()
+			{
+				var x =document.forms["loginForm"]["username"].value;
+				var y =document.forms["loginForm"]["password"].value;
+				console.log(x,y);
+				socket.emit('join', {
+								'username' : x,
+								'password' : y
+							});
+				return false;
+			}
+
+
+
+			//function for two div for which we are explicitly making the graph for drag and drop functionalities
+			prices_fun("2");
+			setTimeout(function(){prices_fun("3");},1000);
+
+
+
+
+
+			//functionality on div class .chat-message thatit should allow Drop operation in its div
+			function allowDrop(ev) {
+    			ev.preventDefault();
+			}
+
+
+
+
+			//what to do at drag function ...for this we have to set attribute draggable = true for that div
+			function drag(ev) {
+    			ev.dataTransfer.setData("text", ev.target.id);
+			}
+
+
+
+
+
+
+			//what would happend when a drop operation is made after dragging
+			function drop(ev) 
+			{
+			    ev.preventDefault();
+			    var data = ev.dataTransfer.getData("text");
+			    var nodeCopy = document.getElementById(data).cloneNode(true);
+  				nodeCopy.id = "newId";
+			    ev.target.appendChild(nodeCopy);
+			    var temp=data.substr(5,data.length-5);
+			    var t2="data"+temp;
+			    var receiver_name = document.querySelector('.chat-name').value;
+			  	
+			    //check for whom the message is conecerned if there is nothing in the receiver_name use alert
+			    if(receiver_name.length===0)
+			    alert("enter the receiver email");
+				else
+			    {
+
+				    d3.csv(t2+".csv", function(pr)
+				    {
+			         	dataset = pr.map(function(d){
+				            label=d.label
+				            count=d.count
+			            return {"label":label ,"count":count}; })
+			            //load the data from the corresponding file and then redirect it to .INPUT2
+			            socket.emit('input2',{sender_id :socket.id, name: receiver_name ,data: dataset});
+	      			}); 
+
+				}
+      			console.log("message to server reagrding chart");
+			}
+	</script>
+	</body>
+</html>

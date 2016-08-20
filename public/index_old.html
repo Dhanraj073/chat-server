@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Chat</title>
+	</head>
+	
+	<body>
+		<link href="/css/index.css" rel="stylesheet">
+		
+		<div class="chat">
+			<input type="text" class="chat-name" placeholder="Enter receiver's email id">
+			<div class="chat-messages"></div>
+			<textarea placeholder="Enter message"></textarea>
+			<div class="chat-status">Status: <span>Idle</span></div>
+		</div>
+
+		<form name="loginForm">
+  			email:<br>
+  			<input type="email" name="username"><br>
+  			Password:<br>
+  			<input type="password" name="password"><br><br>
+		</form>
+		<button type="button" onclick="connectToSocket()"></button><br><br>
+		<div id="mydiv"></div>
+		
+
+		
+		<script src="http://192.169.7.56:3030/socket.io/socket.io.js"></script>
+		<script src="/js/d3.min.js"></script>
+		<script src="/js/chartPie_v0i.js"></script>
+		<script src="/js/easel.js"></script>
+		<!-- <script src="/js/dropzone.js"></script> -->
+		<script src="/js/interact.js"></script>
+		<script>
+			try 
+			{
+				var socket = io.connect('http://192.169.7.56:3030');
+					// var delivery = new Delivery(socket);
+			} 
+			catch(e) 
+			{
+				console.log("scoket didn't connect");	// set status to warn user
+			}
+
+			(function() 
+			{
+					
+				var getNode = function(s) {return document.querySelector(s);};
+				
+				var status = getNode('.chat-status span');
+				var textarea = getNode('.chat textarea');
+				var chatName = getNode('.chat-name');
+				var messages = getNode('.chat-messages');
+				var statusDefault = status.textConent;
+				
+				var setStatus = function(s) {status.textContent = s;};
+
+				if(socket != undefined) 
+				{
+					socket.on('output', function(data,val) 
+					{
+						console.log("value for checking what to be presented at screen" , val);
+						if(val===0)
+						{
+							if(data.length) 
+							{	
+								for(var x = 0; x < data.length; x++) 
+								{
+									var message = document.createElement('div');
+									message.setAttribute('class', 'chat-message');
+									message.textContent = data[x].sname + ':' + data[x].message;
+									messages.appendChild(message);
+									messages.insertBefore(message, messages.firstChild);
+								}
+							}
+						}
+						else
+						{
+							console.log("chart has to be made in message section");
+							var mydiv =document.createElement('div');
+							mydiv.setAttribute('id','chat-div-chart');
+							messages.appendChild(mydiv);
+							messages.insertBefore(mydiv,messages.firstChild);
+							//console.log(document.getElementById('chat-div-chart').style.width);
+							//stucking at not getting height and width using class css
+							var temp_arr=[];
+							var temp=data.length,prev=0;
+							var t2=data.split(" ");
+							temp_arr.push(t2);
+						//	console.log(data[39],temp);
+							// for(var i=0;i<temp;i++)
+							// {
+							//  	if(data[i]===" " || data[i]==="\n")
+							//  	{
+							//  		var t2= data.substr(prev,i-prev);
+							//  		temp_arr.push(t2);
+							//  		prev=i+1;
+							//  		console.log(t2);
+							//  	}
+							// }
+						//	console.log(temp_arr);
+							var temp_values=[];
+							for(var i=1;i<temp_arr[0].length;i++)
+							{
+								var t1=[];
+								var t2=temp_arr[0][i].split(",");
+								t1.push(t2);
+								temp_values.push({"label":t1[0][0] , "count":t1[0][1]});
+							}
+							var color =d3.scale.category20c();
+							d3.select(".chat-div-chart").append("svg").attr("width",150).attr("height",100);
+						//	console.log("bdjc");
+						//	console.log(temp_values);
+							addPieChart(0,0,100,100,"chat-div-chart",color,0,0,0,0,0,temp_values);
+						}
+					});
+
+					socket.on('new_output',function(data,data2)
+					{
+						if(data.length){
+							for(var x=0;x<data.length;x++){
+								console.log(data[x].dname,data2[x]);
+							}
+						}
+					});
+
+					socket.on('new_output2',function(data,data2)
+					{
+						console.log(data[0].dname,1);
+					});
+
+					socket.on('new_output1',function(data,data2)
+					{
+						console.log(data[0].dname,0);	
+					});
+
+
+					socket.on('output4',function(arr)
+					{
+						var temp_arr=[];
+							var temp=arr.length,prev=0;
+							var t2=arr.split(" ");
+							temp_arr.push(t2);
+						//	console.log(arr[39],temp);
+							// for(var i=0;i<temp;i++)
+							// {
+							//  	if(data[i]===" " || data[i]==="\n")
+							//  	{
+							//  		var t2= data.substr(prev,i-prev);
+							//  		temp_arr.push(t2);
+							//  		prev=i+1;
+							//  		console.log(t2);
+							//  	}
+							// }
+						//	console.log(temp_arr);
+							var temp_values=[];
+							for(var i=1;i<temp_arr[0].length;i++)
+							{
+								var t1=[];
+								var t2=temp_arr[0][i].split(",");
+								t1.push(t2);
+								temp_values.push({"label":t1[0][0] , "count":t1[0][1]});
+							}
+							var color =d3.scale.category20c();
+							d3.select(".chat-div-chart").append("svg").attr("width",150).attr("height",100);
+						//	console.log("bdjc");
+						//	console.log(temp_values);
+						var color =d3.scale.category20c();
+						d3.select(".chat").append("svg").attr("width",900).attr("height",700);
+						addPieChart(0,0,500,400,"chat",color,0,0,0,0,0,temp_values);
+						
+					});
+
+					socket.on('status', function(data) {
+						setStatus((typeof data === 'object') ? data.message : data);
+						if(data.clear === true) {
+							textarea.value = '';
+						}
+					});
+
+					textarea.addEventListener('keydown', function(event) {
+						var self = this;
+						var name = chatName.value;
+
+						if(event.which === 13 && event.shiftKey === false) {
+							if(textarea.value[0]==='C' && textarea.value[1]==='h' && textarea.value[2]==='a' && textarea.value[3]==='r'  && textarea.value[4]==='t')
+							{
+								socket.emit('chart',{
+									name : name,
+									message: self.value,
+								});
+							}
+							else
+							{
+								socket.emit('input', {
+									name : name,
+									message : self.value,
+									
+								});
+							}
+							event.preventDefault();
+						}
+					});
+				}
+			})();
+
+			connectToSocket = function(){
+				var x =document.forms["loginForm"]["username"].value;
+				var y =document.forms["loginForm"]["password"].value;
+				console.log(x,y);
+				socket.emit('join', {
+								'username' : x,
+								'password' : y
+							});
+				return false;
+			}
+	</script>
+	</body>
+</html>
